@@ -1,16 +1,16 @@
 {
   "name": "@hffmnn/sotto-voice",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sentence-streamed speech for conversational agents.",
   "type": "module",
   "license": "MIT",
-  "files": ["dist", "!dist/*.test.*", "docs/*.svg", "docs/models.md", "README.md", "LICENSE"],
+  "files": ["dist", "!dist/*.test.*", "docs/*.svg", "docs/models.md", "docs/api.md", "runtime/README.md", "skills/**/*", "README.md", "LICENSE"],
   "exports": {".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}},
   "engines": {"node": ">=22.19"},
   "repository": {"type": "git", "url": "https://github.com/hffmnnj/sotto-voice.git"},
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "node scripts/build-skills.mjs && tsc -p tsconfig.json",
+    "typecheck": "node scripts/build-skills.mjs && tsc --noEmit -p tsconfig.json",
     "test": "npm run build && node --test dist/*.test.js"
   },
   "devDependencies": {"@types/node": "^22.10.2", "typescript": "^5.7.2"}

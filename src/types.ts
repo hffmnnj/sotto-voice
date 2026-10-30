@@ -25,7 +25,7 @@ export interface SegmentationOptions {
 export interface StreamSpeechOptions extends SegmentationOptions {
   synthesizer: SpeechSynthesizer;
   signal?: AbortSignal;
-  /** Maximum synthesized or queued sentences ahead of playback. Default 2. */
+  /** Maximum sentences queued ahead of active synthesis. Default 2. */
   maxPendingSentences?: number;
 }
 
@@ -36,4 +36,35 @@ export interface OpenAiSpeechOptions {
   apiKey?: string;
   timeoutMs?: number;
   maxAudioBytes?: number;
+}
+
+/** Text or a complete recording supplied by the host, never implicit microphone capture. */
+export type VoiceInput =
+  | { type: "text"; text: string }
+  | { type: "audio"; data: Uint8Array; mimeType: string };
+
+export interface VoiceResponder {
+  respond(text: string, options: { signal: AbortSignal }): AsyncIterable<string>;
+}
+
+export interface SpeechRecognizer {
+  transcribe(audio: Uint8Array, mimeType: string, signal: AbortSignal): Promise<string>;
+}
+
+export type VoiceTurnPhase = "transcribing" | "thinking" | "speaking";
+
+export interface VoiceTranscript {
+  role: "user" | "assistant";
+  /** Full user text, assistant delta, or an empty final assistant marker. */
+  text: string;
+  final: boolean;
+}
+
+export interface VoiceTurnOptions extends StreamSpeechOptions {
+  responder: VoiceResponder;
+  /** Required only for audio input. */
+  recognizer?: SpeechRecognizer;
+  onTranscript?: (transcript: VoiceTranscript) => void;
+  /** Speaking means a chunk is ready, not that the host has played it. */
+  onState?: (phase: VoiceTurnPhase) => void;
 }

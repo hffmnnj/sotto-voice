@@ -2,15 +2,15 @@
 
 # Sotto
 
-**Speech that starts before the answer ends.**
+**Model-agnostic voice turns: text or a recording in, ordered speech out.**
 
-Sotto turns an async stream of text into small, ordered pieces of speech. Give it
-the tokens from your agent and a speech synthesizer. Play each audio chunk as it
-arrives. Stop the turn with an `AbortSignal`.
-
-No agent framework. No provider lock-in. No mandatory cloud service. The TypeScript
-core has **zero runtime dependencies**; the optional Python runtime runs Kokoro or
-Breeze TTS 2 GGUF on your own GPU and Whisper on CPU.
+`streamVoiceTurn` composes a complete host-supplied input, any text model
+behind a small `VoiceResponder` port, and any speech engine behind a small
+`SpeechSynthesizer` port into cancellable sentence audio with transcript and
+pipeline callbacks. No agent framework. No provider lock-in. No mandatory
+cloud service. The TypeScript core has **zero runtime dependencies**; the
+optional Python runtime runs Kokoro or Breeze TTS 2 GGUF on your own GPU and
+Whisper on CPU.
 
 ## Use it
 
@@ -19,22 +19,20 @@ repository and run `npm install && npm run build`, then use `npm install /path/t
 in your application. The package name is `@hffmnn/sotto-voice`.
 
 ```ts
-import { createOpenAiSpeechSynthesizer, streamSpeech } from "@hffmnn/sotto-voice";
+import { streamVoiceTurn } from "@hffmnn/sotto-voice";
 
 const controller = new AbortController();
-const synthesizer = createOpenAiSpeechSynthesizer({
-  baseUrl: "http://127.0.0.1:8935/v1",
-  apiKey: process.env.SOTTO_API_KEY,
-  voice: "af_heart",
-});
-
-// An async iterable of text deltas from any model or agent framework.
-async function* reply() {
-  yield "Let me check that. ";
-  yield "The film starts at eight.";
-}
-
-for await (const chunk of streamSpeech(reply(), { synthesizer, signal: controller.signal })) {
+for await (const chunk of streamVoiceTurn(
+  { type: "text", text: "What time is the film?" },
+  {
+    responder, // your model: respond(text, { signal }) -> AsyncIterable<string>
+    recognizer, // your speech-to-text, audio turns only
+    synthesizer, // e.g. createOpenAiSpeechSynthesizer({ baseUrl, apiKey, voice })
+    signal: controller.signal,
+    onTranscript: (t) => captions.show(t),
+    onState: (phase) => presence.show(phase), // transcribing | thinking | speaking
+  },
+)) {
   // chunk.data is a complete PCM16 WAV. Queue it on your audio player.
   // chunk.text, chunk.index and chunk.synthesisMs support captions and timing.
   await player.enqueue(chunk.data);
@@ -44,26 +42,58 @@ for await (const chunk of streamSpeech(reply(), { synthesizer, signal: controlle
 controller.abort();
 ```
 
-For a Q4 Breeze-configured runtime, set `model: "breeze-tts-2-q4_k"` and
-`voice: "breeze"` when creating the synthesizer. The generic adapter retains its
-Kokoro defaults for existing clients; model selection is explicit.
+Full port signatures, defaults, transcript and cancellation semantics are in
+[docs/api.md](docs/api.md). Spoken-answer prompt policy ships as
+`AGENT_VOICE_INSTRUCTIONS` with its canonical source in
+[skills/agent-voice/SKILL.md](skills/agent-voice/SKILL.md); append it to your
+model's system instructions. Repository workflow is in
+[skills/sotto-development/SKILL.md](skills/sotto-development/SKILL.md).
 
-`player` is your application's audio output, not a Sotto API. Keep its own playback
-queue bounded: returning immediately from `enqueue` without a limit defeats any
-upstream backpressure.
+`player` is your application's audio output, not a Sotto API. Keep its own
+playback queue bounded: returning immediately from `enqueue` without a limit
+defeats any upstream backpressure.
+
+Your application owns microphone consent, voice activity detection, audio
+focus, playback, durable conversation and agent tools. Sotto never inserts
+filler, never captures audio, and knows nothing about tool permissions.
 
 ## How it flows
 
 ![Text generation, sentence segmentation, bounded synthesis and ordered playback overlap in time.](docs/pipeline.svg)
 
-`segmentText()` emits completed sentences as soon as punctuation arrives. It keeps
-common abbreviations and decimals intact, flushes unfinished trailing text, and
-bounds an unpunctuated stretch. An earlier comma/semicolon clause can start speech
-before a long sentence finishes.
+`streamVoiceTurn` transcribes audio input (text input skips this), streams the
+model reply through `segmentText()`, and synthesizes one sentence at a time
+while reading a small number of future sentences. Consumer backpressure bounds
+lookahead; cancellation stops future work and discards late audio even if a
+provider ignores its signal.
 
-`streamSpeech()` synthesizes one segment at a time while reading a small number
-of future segments. Consumer backpressure bounds lookahead; cancellation stops
-future work and discards late audio even if a provider ignores its signal.
+Need the text stream without the turn wrapper? `streamSpeech()` takes your own
+`AsyncIterable<string>` plus a synthesizer and yields the same ordered chunks:
+
+```ts
+import { createOpenAiSpeechSynthesizer, streamSpeech } from "@hffmnn/sotto-voice";
+
+const apiKey = process.env.SOTTO_API_KEY;
+if (!apiKey) throw new Error("Set the runtime's SOTTO_API_KEY");
+const synthesizer = createOpenAiSpeechSynthesizer({
+  baseUrl: "http://127.0.0.1:8935/v1",
+  apiKey,
+  voice: "af_heart",
+});
+
+async function* reply() {
+  yield "Let me check that. ";
+  yield "The film starts at eight.";
+}
+
+for await (const chunk of streamSpeech(reply(), { synthesizer, signal: controller.signal })) {
+  await player.enqueue(chunk.data);
+}
+```
+
+For a Q4 Breeze-configured runtime, set `model: "breeze-tts-2-q4_k"` and
+`voice: "breeze"` when creating the synthesizer. The generic adapter retains its
+Kokoro defaults for existing clients; model selection is explicit.
 
 This is **sentence streaming**, not phoneme-level or audio-token streaming.
 The WAV adapter collects the whole short segment before Sotto yields it, even
@@ -141,9 +171,8 @@ something up. Speak it as an ordinary first sentence. Do not prepend “Hmm” t
 every answer, invent fake progress, or keep talking over the user. Sotto never
 inserts filler automatically and knows nothing about tool permissions.
 
-Your application owns microphone consent, voice activity detection, audio focus,
-playback, durable conversation and agent tools. Neither Pi nor ADB belongs in
-this package. There is no always-on recorder, voice cloning or telemetry.
+Neither Pi nor ADB belongs in this package. There is no always-on recorder,
+voice cloning or telemetry.
 
 ## Development
 

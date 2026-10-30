@@ -111,6 +111,14 @@ CUDA allocation excludes driver/runtime overhead. Model quality is subjective;
 no claim is made that the smallest model tops the quality leaderboard. See
 [model selection and sources](docs/models.md).
 
+A second real service probe on an RTX 3070 Ti (8 GB) used about **898 MiB** of
+process GPU memory. Through Sotto's TypeScript adapter over loopback HTTP, the
+first short sentence arrived in **107 ms**, and two sentences completed synthesis
+in **200 ms** total. CPU/int8 transcription of the second synthetic sentence took
+**1.058 seconds** and returned its words correctly. These figures still exclude
+LLM reasoning, microphone capture, network-to-TV delivery and playback. They are
+not a claim of a live conversational round-trip.
+
 ## Conversation without the theatre
 
 Let the agent choose a short acknowledgment when it actually needs to look

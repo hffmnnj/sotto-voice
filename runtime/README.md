@@ -9,6 +9,9 @@ their model weights from the respective upstream repositories on first startup.
 uv venv --python 3.12 .venv
 # Install the PyTorch wheel appropriate to your GPU and CUDA driver, then:
 uv pip install --python .venv/bin/python -r runtime/requirements.txt
+# Misaki's English frontend needs this spaCy model. Install it before switching
+# to an unprivileged service account with a read-only environment.
+.venv/bin/python -m spacy download en_core_web_sm
 export SOTTO_API_KEY="$(openssl rand -hex 32)"
 export SOTTO_DEVICE=cuda
 .venv/bin/uvicorn server:create_app --factory --app-dir runtime --host 127.0.0.1 --port 8935

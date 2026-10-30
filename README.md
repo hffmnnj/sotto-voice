@@ -9,8 +9,8 @@ the tokens from your agent and a speech synthesizer. Play each audio chunk as it
 arrives. Stop the turn with an `AbortSignal`.
 
 No agent framework. No provider lock-in. No mandatory cloud service. The TypeScript
-core has **zero runtime dependencies**; the optional Python runtime runs Kokoro on
-your own GPU and Whisper on CPU.
+core has **zero runtime dependencies**; the optional Python runtime runs Kokoro or
+Breeze TTS 2 GGUF on your own GPU and Whisper on CPU.
 
 ## Use it
 
@@ -44,6 +44,10 @@ for await (const chunk of streamSpeech(reply(), { synthesizer, signal: controlle
 controller.abort();
 ```
 
+For a Q4 Breeze-configured runtime, set `model: "breeze-tts-2-q4_k"` and
+`voice: "breeze"` when creating the synthesizer. The generic adapter retains its
+Kokoro defaults for existing clients; model selection is explicit.
+
 `player` is your application's audio output, not a Sotto API. Keep its own playback
 queue bounded: returning immediately from `enqueue` without a limit defeats any
 upstream backpressure.
@@ -62,7 +66,8 @@ of future segments. Consumer backpressure bounds lookahead; cancellation stops
 future work and discards late audio even if a provider ignores its signal.
 
 This is **sentence streaming**, not phoneme-level or audio-token streaming.
-Kokoro produces the whole short segment before Sotto yields it. That distinction
+The WAV adapter collects the whole short segment before Sotto yields it, even
+when the underlying model supports native audio streaming. That distinction
 matters when comparing time-to-first-audio numbers.
 
 ## Controls
@@ -94,6 +99,8 @@ provider response bodies or secrets in errors.
 See [the runtime guide](runtime/README.md). The optional service provides:
 
 - Kokoro-82M, stock voices, CUDA or an explicitly selected CPU device.
+- Optional Breeze TTS 2 Q4_K or Q8_0 through a pinned Vulkan C++ runtime, with a reference-free
+  designed voice. Its research/non-commercial model license is separate from this code.
 - Whisper small/int8 on CPU, leaving GPU headroom for speech synthesis.
 - OpenAI-compatible speech and transcription endpoints on loopback with bearer auth.
 - One inference at a time, bounded admission, recording/text limits and no transcript logs.
@@ -118,6 +125,14 @@ in **200 ms** total. CPU/int8 transcription of the second synthetic sentence too
 **1.058 seconds** and returned its words correctly. These figures still exclude
 LLM reasoning, microphone capture, network-to-TV delivery and playback. They are
 not a claim of a live conversational round-trip.
+
+On the same RTX 3070 Ti, the optional **Breeze TTS 2 Q4_K** service produced
+3.36 seconds of audio in **1.078 seconds** through the same WAV adapter after
+representative startup warmup. CPU Whisper returned the exact synthetic words
+in 1.243 seconds. The service process used 2,683 MiB of GPU memory after the probe;
+that is an observed allocation, not a worst-case peak. Kokoro took 214 ms for the
+same text in the comparison, so Q4 trades some latency for a different voice model.
+These single probes do not establish general quality, p95 latency, or real conversation.
 
 ## Conversation without the theatre
 
@@ -145,5 +160,6 @@ engine; they do not establish model quality or CUDA compatibility.
 ## License
 
 MIT for this code and original diagrams. Kokoro weights are Apache-2.0;
-Whisper/faster-whisper have their own MIT licenses. Models and their licenses
-are not bundled or relicensed by Sotto. See [LICENSE](LICENSE).
+Whisper/faster-whisper have their own MIT licenses. Breeze C++ code is Apache-2.0,
+but Breeze weights and self-hosted outputs are research/non-commercial only.
+Models and their licenses are not bundled or relicensed by Sotto. See [LICENSE](LICENSE).

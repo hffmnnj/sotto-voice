@@ -21,8 +21,8 @@ VOICES = {"af_heart", "af_bella", "af_nicole", "am_adam", "am_michael"}
 class SpeechInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     input: str = Field(min_length=1, max_length=1200)
-    model: str = "kokoro"
-    voice: str = "af_heart"
+    model: str | None = None
+    voice: str | None = None
     response_format: str = "wav"
 
 
@@ -33,6 +33,11 @@ class Engine(Protocol):
 
 
 class KokoroWhisper:
+    tts_model = "kokoro-82m"
+    models = frozenset({"kokoro", "kokoro-82m"})
+    voices = frozenset(VOICES)
+    default_voice = "af_heart"
+
     def __init__(self, device: str):
         import torch
         from kokoro import KPipeline
@@ -97,6 +102,44 @@ class KokoroWhisper:
         return " ".join(segment.text.strip() for segment in segments).strip()[:4000]
 
 
+class BreezeWhisper(KokoroWhisper):
+    tts_model = "breeze-tts-2-q8_0"
+    models = frozenset({"breeze-tts-2-q8_0"})
+    voices = frozenset({"breeze"})
+    default_voice = "breeze"
+
+    def __init__(self, device: str):
+        from breeze import Breeze
+        from faster_whisper import WhisperModel
+
+        self.breeze = Breeze(os.environ.get("SOTTO_BREEZE_LIBRARY", ""), os.environ.get("SOTTO_BREEZE_MODEL", ""), device)
+        self.tts_model = self.breeze.model_id
+        self.models = frozenset({self.tts_model})
+        self.device = self.breeze.device
+        try:
+            self.whisper = WhisperModel("small", device="cpu", compute_type="int8", cpu_threads=4, num_workers=1)
+            self.speak("This is a short synthetic speech test.", "breeze")
+        except BaseException:
+            self.close()
+            raise
+
+    def speak(self, text: str, voice: str) -> bytes:
+        return self.breeze.speak(text)
+
+    def close(self) -> None:
+        self.breeze.close()
+
+
+def load_engine() -> Engine:
+    selected = os.environ.get("SOTTO_TTS_ENGINE", "kokoro")
+    device = os.environ.get("SOTTO_DEVICE", "cuda")
+    if selected == "kokoro":
+        return KokoroWhisper(device)
+    if selected == "breeze":
+        return BreezeWhisper(device)
+    raise ValueError("SOTTO_TTS_ENGINE must be kokoro or breeze")
+
+
 def create_app(engine: Engine | None = None, token: str | None = None) -> FastAPI:
     key = token if token is not None else os.environ.get("SOTTO_API_KEY", "")
     if len(key) < 32 or not key.isascii() or "\r" in key or "\n" in key:
@@ -107,8 +150,15 @@ def create_app(engine: Engine | None = None, token: str | None = None) -> FastAP
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.engine = engine or await asyncio.to_thread(KokoroWhisper, os.environ.get("SOTTO_DEVICE", "cuda"))
-        yield
+        active = engine if engine is not None else await asyncio.to_thread(load_engine)
+        app.state.engine = active
+        try:
+            yield
+        finally:
+            app.state.engine = None
+            close = getattr(active, "close", None)
+            if close is not None:
+                await asyncio.to_thread(close)
 
     app = FastAPI(title="Sotto", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -154,13 +204,21 @@ def create_app(engine: Engine | None = None, token: str | None = None) -> FastAP
     @app.get("/health")
     async def health():
         active = getattr(app.state, "engine", None)
-        return {"ready": active is not None, "device": active.device if active else None, "ttsModel": "kokoro-82m", "sttModel": "whisper-small-int8-cpu"}
+        return {"ready": active is not None, "device": active.device if active else None, "ttsModel": getattr(active, "tts_model", "kokoro-82m") if active else None, "sttModel": "whisper-small-int8-cpu"}
 
     @app.post("/v1/audio/speech")
     async def speak(request: Request, body: SpeechInput):
-        if body.model not in {"kokoro", "kokoro-82m"} or body.voice not in VOICES or body.response_format != "wav" or not body.input.strip():
+        active = app.state.engine
+        model = body.model if "model" in body.model_fields_set else getattr(active, "tts_model", "kokoro-82m")
+        voice = body.voice if "voice" in body.model_fields_set else getattr(active, "default_voice", "af_heart")
+        if (
+            model is None or voice is None
+            or model not in getattr(active, "models", {"kokoro", "kokoro-82m"})
+            or voice not in getattr(active, "voices", VOICES)
+            or body.response_format != "wav" or not body.input.strip()
+        ):
             raise HTTPException(422, "Unsupported speech settings")
-        audio = await run(request, lambda: app.state.engine.speak(body.input, body.voice))
+        audio = await run(request, lambda: active.speak(body.input, voice))
         return Response(audio, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
     @app.post("/v1/audio/transcriptions")

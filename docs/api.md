@@ -195,19 +195,44 @@ host concern.
 
 Spoken answers need different prose than chat answers: short sentences that
 survive segmentation, no markdown or URLs read aloud, and an acknowledgment
-only when the agent genuinely waits on a tool. That policy lives in
-the exported `AGENT_VOICE_INSTRUCTIONS` string and its canonical source, the
-[agent-voice skill](../skills/agent-voice/SKILL.md). Both are framework-neutral
-prompt material: append them to the model's system instructions. They are
-advisory text, not mechanically injected filler, and only as effective as the
-model obeying them.
+only when the agent genuinely waits on a tool. That policy ships as two
+framework-neutral exports:
+
+- `AGENT_VOICE_INSTRUCTIONS` (canonical source: the
+  [agent-voice skill](../skills/agent-voice/SKILL.md)) is the full startup
+  policy: append it once to the model's system instructions.
+- `TURN_INJECTION_INSTRUCTIONS` (canonical source: the
+  [turn-injection skill](../skills/turn-injection/SKILL.md)) is the tiny
+  recurring reminder: inject it as trusted host context on every model
+  request, without persisting duplicates into conversation history and
+  without speaking it aloud.
+
+```ts
+import {
+  AGENT_VOICE_INSTRUCTIONS,
+  TURN_INJECTION_INSTRUCTIONS,
+} from "@hffmnn/sotto-voice";
+
+// Compose fresh per-request context around the stored conversation. The exact
+// request shape depends on your model client; the rule is append-only and
+// transient: never store the reminder as a conversation turn, and never
+// speak it.
+const startupInstructions = [AGENT_VOICE_INSTRUCTIONS];
+const requestContext = [...startupInstructions, TURN_INJECTION_INSTRUCTIONS];
+```
+
+Both are advisory text, not mechanically injected filler, and only as
+effective as the model obeying them.
 
 To install a skill, copy or symlink the repo's `skills/<name>` folder into the
 host application's discovered skills directory, or import the exported
 instruction string for applications with explicit prompt configuration. No
-single agent brand's install path is prescribed here.
+single agent brand's install path is prescribed here. Skills are discovered
+guidance, not automatic hooks: installing a skill alone does not implement
+injection; host code must inject the reminder on each request.
 
-Repository development workflow lives in the
+Host integration guidance for developers adding Sotto to their own
+application lives in the
 [sotto-development skill](../skills/sotto-development/SKILL.md).
 
 ## Host responsibilities

@@ -43,10 +43,14 @@ controller.abort();
 ```
 
 Full port signatures, defaults, transcript and cancellation semantics are in
-[docs/api.md](docs/api.md). Spoken-answer prompt policy ships as
-`AGENT_VOICE_INSTRUCTIONS` with its canonical source in
-[skills/agent-voice/SKILL.md](skills/agent-voice/SKILL.md); append it to your
-model's system instructions. Repository workflow is in
+[docs/api.md](docs/api.md). Spoken-answer prompt policy ships as two exports:
+`AGENT_VOICE_INSTRUCTIONS` (the full startup policy, canonical source in
+[skills/agent-voice/SKILL.md](skills/agent-voice/SKILL.md)) is appended once to
+your model's system instructions, while `TURN_INJECTION_INSTRUCTIONS` (the tiny
+recurring reminder, canonical source in
+[skills/turn-injection/SKILL.md](skills/turn-injection/SKILL.md)) is injected as
+trusted host context on every model request. Host integration guidance for
+developers adding Sotto to their own application is in
 [skills/sotto-development/SKILL.md](skills/sotto-development/SKILL.md).
 
 `player` is your application's audio output, not a Sotto API. Keep its own

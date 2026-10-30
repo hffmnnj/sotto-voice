@@ -1,6 +1,6 @@
 {
   "name": "@hffmnn/sotto-voice",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Sentence-streamed speech for conversational agents.",
   "type": "module",
   "license": "MIT",

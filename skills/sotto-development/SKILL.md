@@ -1,44 +1,54 @@
 ---
 name: sotto-development
-description: Develops or debugs the Sotto voice-turn repo itself (TypeScript turn pipeline, OpenAI-compatible adapter, Python speech runtime). Load when changing source, docs, skills, or model/runtime config in this repo. Not for merely speaking with an agent using the agent-voice prompt policy.
+description: Integrates Sotto voice turns into a host application using an agent harness. Load when wiring a recognizer, responder, or synthesizer, or when configuring per-turn voice reminders. For developers using agents to add Sotto to their own app, not for Sotto repo contributors.
 ---
 
-Work in the Sotto repo: a model-agnostic TypeScript voice-turn pipeline plus an
-optional Python speech runtime. Keep changes small and framework-neutral,
-because downstream hosts bring their own models and players.
+Integrate Sotto into your application: connect the three ports, apply the
+voice prompt policy, and own the surrounding host duties.
 
-## Boundaries
+## Connect the ports
 
-- Own nothing outside this repo: no host microphone, playback, transport, or
-  deployment work here.
-- Never add an agent framework, provider SDK, or runtime dependency to the
-  TypeScript core; new backends arrive as port adapters.
-- Do not weaken bearer auth, upload limits, admission bounds, or WAV
-  validation to make a probe pass.
+Read `docs/api.md` and the exported types (`VoiceResponder`,
+`SpeechRecognizer`, `SpeechSynthesizer`, `VoiceTurnOptions`) first. Then bring
+your own implementations:
 
-## Workflow
+- `VoiceResponder.respond(text, { signal })` — your text model as streamed
+  string deltas. Honor the abort signal.
+- `SpeechRecognizer.transcribe(audio, mimeType, signal)` — your
+  speech-to-text, needed for audio turns only.
+- `SpeechSynthesizer` — your speech engine, or
+  `createOpenAiSpeechSynthesizer({ baseUrl, apiKey, voice })` for the
+  loopback runtime. Match `model`/`voice` to the engine.
 
-1. Read the contract first: `src/types.ts`, the file under change
-   (`src/voice-turn.ts`, `src/stream.ts`, or `src/openai.ts`), then
-   `docs/api.md` and `runtime/README.md` for the affected surface.
-2. Keep `streamVoiceTurn` the primary API. `segmentText`, `streamSpeech`,
-   and `createOpenAiSpeechSynthesizer` stay compatible beneath it.
-3. Preserve semantics: full user transcript plus delta/empty-final assistant
-   transcripts; `transcribing`/`thinking`/`speaking` pipeline states;
-   caller-signal plus early-return cancellation with late results discarded.
-4. Run from the repo root: `npm run typecheck` and `npm test`. For runtime
-    route changes, also run the fake-engine suite from the repo root
-   (`python -m unittest discover -s runtime -v`) without downloading models.
-5. Update `docs/api.md` and `README.md` with behavior, default, or limit
-   changes; keep measured latency figures as single-probe references.
+Pass them to `streamVoiceTurn(input, options)` with your `signal`,
+`onTranscript`, and `onState` handlers, and play each yielded WAV chunk on
+your own player with a bounded queue.
+
+## Apply the voice policy
+
+`AGENT_VOICE_INSTRUCTIONS` is the full startup policy: append it once to your
+model's system instructions. `TURN_INJECTION_INSTRUCTIONS` is the tiny
+recurring reminder: inject it as trusted host context on every model request,
+without persisting duplicates into conversation history and without speaking
+it aloud. Skills are discovered guidance, not automatic hooks: installing a
+skill alone does not implement injection; your host code must do it.
+
+## Own the host duties
+
+- Authentication, microphone consent and capture, voice activity detection,
+  audio focus, and playback scheduling stay with the host.
+- Tool permissions and turn identity stay with the host: decide when to speak
+  an acknowledgment while a tool runs, and discard stale audio on replacement
+  turns using your own turn IDs.
+- Cancel stale turns: abort the turn's signal on interruption, dismiss, or a
+  replacement turn. Sotto stops consuming and discards late audio.
+- Verify with a real host round trip: text in, streamed reply, ordered WAV
+  chunks out, interruption aborts cleanly.
 
 ## Read-when table
 
 | Before | Read |
 | --- | --- |
-| Changing public API or ports | `src/index.ts`, `docs/api.md` |
-| Changing segmentation or synthesis flow | `src/stream.ts`, `src/stream.test.ts` |
-| Changing the HTTP adapter | `src/openai.ts`, `src/openai.test.ts` |
-| Changing routes, auth, or limits | `runtime/server.py`, `runtime/README.md` |
-| Changing model choice or claims | `docs/models.md` |
-| Writing spoken-answer behavior | `skills/agent-voice/SKILL.md`, not this skill |
+| Wiring ports or options | `docs/api.md`, packaged declarations in `dist/index.d.ts` and `dist/types.d.ts` |
+| Configuring voice prompts | `skills/agent-voice/SKILL.md`, `skills/turn-injection/SKILL.md` |
+| Choosing synthesis setup | `docs/models.md`, `runtime/README.md` |

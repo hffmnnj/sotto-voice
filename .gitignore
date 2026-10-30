@@ -1,6 +1,7 @@
 node_modules/
 dist/
 src/agent-voice.generated.ts
+src/turn-injection.generated.ts
 .venv/
 __pycache__/
 *.pyc

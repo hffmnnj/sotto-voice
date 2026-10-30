@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">A sentence ahead</title><desc id="desc">Text streams into sentence segmentation, a two-sentence bounded queue and synthesis. Playback of the first sentence overlaps later generation. Cancellation stops future work.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="#6f91a3"/></marker></defs>
+  <rect width="1200" height="480" rx="20" fill="#0b141b"/>
+  <g font-family="system-ui,sans-serif"><text x="48" y="62" fill="#edf8fc" font-size="25">A sentence ahead.</text><text x="48" y="92" fill="#8fa5b2" font-size="15">Short segments let generation and speech overlap.</text></g>
+  <g fill="#11232f" stroke="#294351"><rect x="48" y="135" width="230" height="86" rx="12"/><rect x="338" y="135" width="230" height="86" rx="12"/><rect x="628" y="135" width="230" height="86" rx="12"/><rect x="918" y="135" width="230" height="86" rx="12"/></g>
+  <g fill="#d9edf5" font-family="system-ui,sans-serif" font-size="18" text-anchor="middle"><text x="163" y="173">Text deltas</text><text x="453" y="173">Sentence boundary</text><text x="743" y="173">Synthesize</text><text x="1033" y="173">Play in order</text></g>
+  <g fill="#8fa5b2" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle"><text x="163" y="198">Any agent or model</text><text x="453" y="198">Or an early complete clause</text><text x="743" y="198">Bounded lookahead · serial</text><text x="1033" y="198">One WAV per segment</text></g>
+  <g stroke="#6f91a3" marker-end="url(#arrow)"><path d="M286 178h40"/><path d="M576 178h40"/><path d="M866 178h40"/></g>
+  <g font-family="ui-monospace,monospace" font-size="12" fill="#8fa5b2"><text x="48" y="293">GENERATE</text><text x="48" y="335">SYNTHESIZE</text><text x="48" y="377">PLAY</text></g>
+  <g><rect x="192" y="275" width="275" height="23" rx="5" fill="#3e6f87"/><rect x="473" y="275" width="420" height="23" rx="5" fill="#294b60"/><rect x="470" y="317" width="112" height="23" rx="5" fill="#8ad3e8"/><rect x="895" y="317" width="145" height="23" rx="5" fill="#8ad3e8"/><rect x="585" y="359" width="410" height="23" rx="5" fill="#d9edf5"/><rect x="1043" y="359" width="106" height="23" rx="5" fill="#d9edf5"/></g>
+  <text x="48" y="437" fill="#8fa5b2" font-family="system-ui,sans-serif" font-size="14">AbortSignal cancels the turn. Your player discards queued or stale audio.</text>
+</svg>

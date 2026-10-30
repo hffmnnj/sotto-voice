@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="540" viewBox="0 0 1440 540" role="img" aria-labelledby="title desc">
+  <title id="title">Sotto</title><desc id="desc">A fine blue sound ribbon crosses a dark field beside the words Sotto, speech without the wait.</desc>
+  <defs><linearGradient id="ink" x2="1" y2="1"><stop stop-color="#09151f"/><stop offset="1" stop-color="#030709"/></linearGradient><linearGradient id="wave"><stop stop-color="#265b75"/><stop offset=".45" stop-color="#c8f5ff"/><stop offset="1" stop-color="#447e9f"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="12"/></filter></defs>
+  <rect width="1440" height="540" rx="24" fill="url(#ink)"/>
+  <g fill="none" stroke="url(#wave)"><path d="M680 270 C720 270 724 156 760 156 S800 384 836 384 S878 102 914 102 S954 438 990 438 S1032 178 1068 178 S1108 334 1144 334 S1186 230 1222 230 S1270 270 1320 270" stroke-width="16" opacity=".5" filter="url(#glow)"/><path d="M680 270 C720 270 724 156 760 156 S800 384 836 384 S878 102 914 102 S954 438 990 438 S1032 178 1068 178 S1108 334 1144 334 S1186 230 1222 230 S1270 270 1320 270" stroke-width="3"/></g>
+  <text x="96" y="275" fill="#edf8fc" font-family="system-ui,sans-serif" font-size="112" font-weight="400" letter-spacing="-7">sotto</text>
+  <text x="102" y="330" fill="#8fa5b2" font-family="system-ui,sans-serif" font-size="23">Speech without the wait.</text>
+  <text x="102" y="466" fill="#6c8796" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2">TEXT IN. VOICE OUT. YOUR STACK.</text>
+</svg>
